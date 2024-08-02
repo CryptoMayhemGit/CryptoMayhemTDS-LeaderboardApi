@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.9.2" />
+    <PackageReference Include="Nethereum.Signer" Version="4.21.2" />
+    <PackageReference Include="Nethereum.Web3" Version="4.21.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mayhem.Configuration\Mayhem.Configuration.csproj" />
+    <ProjectReference Include="..\Mayhem.Dal\Mayhem.Dal.csproj" />
+    <ProjectReference Include="..\Mayhem.Util\Mayhem.Util.csproj" />
+  </ItemGroup>
+
+</Project>
