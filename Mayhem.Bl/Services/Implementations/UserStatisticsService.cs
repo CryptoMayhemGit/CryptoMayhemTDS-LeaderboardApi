@@ -12,8 +12,12 @@ using Mayhem.Util.Exceptions;
 using Microsoft.Extensions.Logging;
 using Nethereum.ABI.FunctionEncoding.Attributes;
 using Nethereum.Contracts;
+using Nethereum.Hex.HexTypes;
+using Nethereum.RPC.Eth.DTOs;
+using Nethereum.RPC.NonceServices;
 using Nethereum.Util;
 using Nethereum.Web3;
+using System.Net;
 using System.Numerics;
 
 namespace Mayhem.Bl.Services.Implementations
@@ -215,24 +219,30 @@ namespace Mayhem.Bl.Services.Implementations
         {
             Contract? web3Contract = web3.Eth.GetContract(mayhemConfiguration.AlturaTournamentAbi, mayhemConfiguration.AlturaTournamentAddress);
             var account = new Nethereum.Web3.Accounts.Account(mayhemConfiguration.PrivateKeyWallet);
+            account.NonceService = new InMemoryNonceService(account.Address, web3.Client);
+            var futureNonce = await account.NonceService.GetNextNonceAsync();
 
             Function function = web3Contract.GetFunction("consumeItem");
             try
             {
-                var gass = await function.EstimateGasAsync(account.Address, null, null, authorizationDecodedRequest.signedData.Wallet, new BigInteger(mayhemConfiguration.AlturaTournamentTicketId), new BigInteger(1));
-                
+                var gas = await function.EstimateGasAsync(account.Address, null, null, authorizationDecodedRequest.signedData.Wallet, new BigInteger(mayhemConfiguration.AlturaTournamentTicketId), new BigInteger(1));
+                var gasPrice = await web3.Eth.GasPrice.SendRequestAsync();
+
                 var consumeItemHandler = web3.Eth.GetContractTransactionHandler<ConsumeItemFunction>();
                 var consumeItemFunction = new ConsumeItemFunction()
                 {
                     From = authorizationDecodedRequest.signedData.Wallet,
                     ItemId = new BigInteger(mayhemConfiguration.AlturaTournamentTicketId),
                     Amount = new BigInteger(1),
-                    GasPrice = Nethereum.Web3.Web3.Convert.ToWei(25, UnitConversion.EthUnit.Gwei),
-                    Gas = gass.Value,
+                    GasPrice = gasPrice.Value,
+                    Gas = gas.Value,
+                    Nonce = futureNonce
                 };
 
-                var transactionReceipt = await consumeItemHandler.SendRequestAndWaitForReceiptAsync(mayhemConfiguration.AlturaTournamentAddress, consumeItemFunction);
-
+                logger.LogInformation($"Start Send!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                var receipt = await consumeItemHandler.SendRequestAndWaitForReceiptAsync(mayhemConfiguration.AlturaTournamentAddress, consumeItemFunction);
+                logger.LogInformation($"Stop Send!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                //var receipt = await MineAndGetReceiptAsync(web3, transactionReceipt);
                 logger.LogInformation($"Ticket has been burend for Wallet {authorizationDecodedRequest.signedData.Wallet}.");
             }
             catch (Exception ex)
@@ -241,6 +251,19 @@ namespace Mayhem.Bl.Services.Implementations
                 logger.LogError(ex, errorMessage);
                 throw new NotFoundException(new ValidationMessage("BAD_REQUEST", errorMessage));
             }
+        }
+
+        public async Task<TransactionReceipt> MineAndGetReceiptAsync(IWeb3 web3, string transactionHash)
+        {
+            var receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(transactionHash);
+
+            while (receipt == null)
+            {
+                Thread.Sleep(1000);
+                receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(transactionHash);
+            }
+
+            return receipt;
         }
 
         [Function("consumeItem")]
