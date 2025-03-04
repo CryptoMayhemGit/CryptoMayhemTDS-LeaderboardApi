@@ -1,9 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Mayhem.Dal.Tables;
+using Microsoft.EntityFrameworkCore;
 
 namespace Mayhem.Dal.MappingsConfiguration
 {
@@ -11,7 +7,6 @@ namespace Mayhem.Dal.MappingsConfiguration
     {
         public static void OnModelCreating(ModelBuilder modelBuilder)
         {
-            //modelBuilder.ApplyConfiguration(new GameVersionMappingConfiguration());
         }
     }
 }

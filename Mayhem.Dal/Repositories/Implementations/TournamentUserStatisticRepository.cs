@@ -12,7 +12,7 @@ namespace Mayhem.Dal.Repositories.Implementations
         public async Task<List<TournamentUserStatistics>> GetGameUsersAsync(int tournamentId)
         {
             return await mayhemDataContext
-                .tournamentUserStatistics
+                .TournamentUserStatistics
                 .Where(x => x.TournamentId == tournamentId)
                 .AsNoTracking()
                 .ToListAsync();
@@ -21,7 +21,7 @@ namespace Mayhem.Dal.Repositories.Implementations
         public async Task<List<TournamentUserStatistics>> GetActiveTournamentGameUsersAsync()
         {
             return await mayhemDataContext
-                .tournamentUserStatistics
+                .TournamentUserStatistics
                 .Include(x => x.Tournament)
                 .Where(x => x.Tournament.EndDate > DateTime.UtcNow)
                 .AsNoTracking()
@@ -30,7 +30,7 @@ namespace Mayhem.Dal.Repositories.Implementations
 
         public async Task AddAsync(TournamentUserStatisticsDto tournamentUserStatisticsDto)
         {
-            await mayhemDataContext.tournamentUserStatistics.AddAsync(mapper.Map<TournamentUserStatistics>(tournamentUserStatisticsDto));
+            await mayhemDataContext.TournamentUserStatistics.AddAsync(mapper.Map<TournamentUserStatistics>(tournamentUserStatisticsDto));
             await mayhemDataContext.SaveChangesAsync();
         }
     }

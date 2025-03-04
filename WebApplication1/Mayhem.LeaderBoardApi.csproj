@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Mayhem.ApplicationSetup\Mayhem.ApplicationSetup.csproj" />
-    <ProjectReference Include="..\Mayhem.Configuration\Mayhem.Configuration.csproj" />
     <ProjectReference Include="..\Mayhem.Util\Mayhem.Util.csproj" />
   </ItemGroup>
 

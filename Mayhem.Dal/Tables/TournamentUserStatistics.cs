@@ -1,7 +1,10 @@
-﻿namespace Mayhem.Dal.Tables
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Mayhem.Dal.Tables
 {
     public class TournamentUserStatistics
     {
+        [Key]
         public int Id { get; set; }
         public string Wallet { get; set; } = null!;
         public bool IsWin { get; set; }

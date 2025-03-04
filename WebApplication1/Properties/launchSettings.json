@@ -16,7 +16,7 @@
       "launchUrl": "swagger",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "LeaderBoardApiKeyVaultEndpoint": "https://leaderboardapikeyvault.vault.azure.net/"
+        "LeaderBoardApiKeyVaultEndpoint": "https://cm-lbapi-keyvault.vault.azure.net/"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7188;http://localhost:5237"

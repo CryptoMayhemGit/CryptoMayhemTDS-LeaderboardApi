@@ -7,7 +7,7 @@ namespace Mayhem.Dal.Repositories.Interfaces
     {
         Task UpdateAsync(Tournaments tournaments);
         Task<Tournaments> GetAsync(int id);
-        Task AddAsync(TournamentDto tournamentDto);
+        Task<int> AddAsync(TournamentDto tournamentDto);
         Task<Tournaments> GetAsync(string name);
         Task<Tournaments> GetActiveAsync();
         Task<List<Tournaments>> GetArchivedAsync();

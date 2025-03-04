@@ -11,14 +11,14 @@ namespace Mayhem.Dal.Repositories.Implementations
     {
         public async Task CreateGameCodeAsync(ActiveGameCodesDto gameCodeDto)
         {
-            await mayhemDataContext.activeGameCodes.AddAsync(mapper.Map<ActiveGameCodes>(gameCodeDto));
+            await mayhemDataContext.ActiveGameCodes.AddAsync(mapper.Map<ActiveGameCodes>(gameCodeDto));
             await mayhemDataContext.SaveChangesAsync();
         }
 
         public async Task<bool> IsGameCodeActiveAsync(string wallet, Guid gameCode, int tournamentId)
         {
             return await mayhemDataContext
-            .activeGameCodes
+            .ActiveGameCodes
             .AsNoTracking()
             .Where(x => x.Wallet == wallet)
             .Where(x => x.GameCode == gameCode)
@@ -28,11 +28,11 @@ namespace Mayhem.Dal.Repositories.Implementations
 
         public async Task RemoveAsync(Guid gameCode)
         {
-            var itemToRemove = await mayhemDataContext.activeGameCodes.SingleOrDefaultAsync(x => x.GameCode == gameCode);
+            var itemToRemove = await mayhemDataContext.ActiveGameCodes.SingleOrDefaultAsync(x => x.GameCode == gameCode);
 
             if (itemToRemove != null)
             {
-                mayhemDataContext.activeGameCodes.Remove(itemToRemove);
+                mayhemDataContext.ActiveGameCodes.Remove(itemToRemove);
                 await mayhemDataContext.SaveChangesAsync();
             }
         }

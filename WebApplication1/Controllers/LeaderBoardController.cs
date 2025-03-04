@@ -85,6 +85,26 @@ namespace Mayhem.LeaderBoardApi.Controllers
             return CreatedAtAction(nameof(AddTournament), response);
         }
 
+        [Route("EndTournament")]
+        [Authorize]
+        [HttpDelete]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        public async Task<ActionResult> EndTournament()
+        {
+            await tournamentService.EndTournamentAsync();
+            return Ok();
+        }
+
+        [Route("TryEndTournament")]
+        [Authorize]
+        [HttpDelete]
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        public async Task<ActionResult> TryEndTournament()
+        {
+            await tournamentService.TryEndTournamentAsync();
+            return Ok();
+        }
+
         [Route("UpdateTournament")]
         [Authorize]
         [HttpPut]

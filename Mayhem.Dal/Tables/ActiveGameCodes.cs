@@ -1,7 +1,10 @@
-﻿namespace Mayhem.Dal.Tables
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Mayhem.Dal.Tables
 {
     public class ActiveGameCodes
     {
+        [Key]
         public int Id { get; set; }
         public string Wallet { get; set; } = null!;
         public Guid GameCode { get; set; }

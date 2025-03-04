@@ -14,13 +14,25 @@ namespace Mayhem.Dal.Context
         {
         }
 
-        public virtual DbSet<Tournaments> tournaments { get; set; }
-        public virtual DbSet<TournamentUserStatistics> tournamentUserStatistics { get; set; }
-        public virtual DbSet<ActiveGameCodes> activeGameCodes { get; set; }
+        public virtual DbSet<Tournaments> Tournaments { get; set; }
+        public virtual DbSet<TournamentUserStatistics> TournamentUserStatistics { get; set; }
+        public virtual DbSet<ActiveGameCodes> ActiveGameCodes { get; set; }
+        public virtual DbSet<QuestDetails> QuestDetails { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Tournaments>()
+                .HasKey(t => t.Id);
+
+            modelBuilder.Entity<QuestDetails>()
+                .HasKey(q => q.Id);
+
+            modelBuilder.Entity<QuestDetails>()
+                .HasOne(q => q.Tournament)
+                .WithMany(t => t.QuestDetails)
+                .HasForeignKey(q => q.TournamentId);
+
             MappingConfiguration.OnModelCreating(modelBuilder);
 
             base.OnModelCreating(modelBuilder);
