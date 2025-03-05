@@ -47,6 +47,8 @@ namespace Mayhem.Bl.Services.Implementations
                 QuestDetails = mapper.Map<List<QuestDetailsDto>>(request.QuestDetails)
             };
 
+            await tournamentRepository.AddAsync(tournamentDto);
+
             string informationMessage = $"Tournament has been added.";
             logger.LogInformation(informationMessage);
 
