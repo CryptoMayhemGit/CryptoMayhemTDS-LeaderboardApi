@@ -26,7 +26,7 @@ namespace Mayhem.Bl.Validators
             RuleFor(x => x).NotNull().WithMessage("Invalid add tournament request.");
             RuleFor(x => x.DurationHours).GreaterThan(0).WithMessage("Provide more than 0 hour.");
             RuleFor(x => x.Name).NotEmpty().WithMessage("Enter the name of the tournament.");
-            RuleFor(x => x.MP).GreaterThanOrEqualTo(0).LessThanOrEqualTo(10).WithMessage("Set MP between 0 and 10.");
+            RuleFor(x => x.MP).GreaterThanOrEqualTo(1).LessThanOrEqualTo(30).WithMessage("Set MP between 1 and 30.");
             RuleFor(x => x.HP).GreaterThan(0).WithMessage("Set HP to greater than 0.");
             RuleFor(x => x.SP).GreaterThanOrEqualTo(0).WithMessage("SP should be greater ten now.");
             RuleFor(x => x.QuestDetails).NotEmpty().WithMessage("Add at least one tournament quest request.");
@@ -42,6 +42,7 @@ namespace Mayhem.Bl.Validators
 
                     quest.RuleFor(q => q.Value)
                         .GreaterThanOrEqualTo(30).WithMessage("Value must be at least 30 for Survive tournament type.")
+                        .LessThanOrEqualTo(600).WithMessage("Value must be at most 600 for Survive tournament type.")
                         .When(q => q.TournamentType == TournamentType.Survive.ToString());
                 });
         }

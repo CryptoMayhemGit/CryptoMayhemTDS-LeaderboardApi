@@ -47,12 +47,8 @@ namespace Mayhem.Bl.Services.Implementations
                 QuestDetails = mapper.Map<List<QuestDetailsDto>>(request.QuestDetails)
             };
 
-            tournamentDto.Id = await tournamentRepository.AddAsync(tournamentDto);
-
             string informationMessage = $"Tournament has been added.";
             logger.LogInformation(informationMessage);
-
-            await SendPostRequestAsync("https://hook.eu2.make.com/1wlsmosbf3mrue4usu0ugkqjq3ldn8bl", tournamentDto);
 
             return new AddTournamentResponse() { Success = true };
         }
@@ -189,9 +185,6 @@ namespace Mayhem.Bl.Services.Implementations
             {
                 tournament.IsFinished = true;
                 await tournamentRepository.UpdateAsync(tournament);
-
-                TournamentDto tournamentDto = mapper.Map<TournamentDto>(tournament);
-                await SendPostRequestAsync("https://hook.eu2.make.com/d6g08ol96v6rtln47fxe6uk1v1w3y60f", tournamentDto);
             }
             else
             {

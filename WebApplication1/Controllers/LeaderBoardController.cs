@@ -47,7 +47,6 @@ namespace Mayhem.LeaderBoardApi.Controllers
         }
 
         [Route("GetActiveTournament")]
-        [Authorize]
         [HttpGet]
         [ProducesResponseType(typeof(GetActiveTournamentResponse), (int)HttpStatusCode.OK)]
         public async Task<ActionResult> GetActiveTournament()
