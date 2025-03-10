@@ -3,6 +3,7 @@ using Mayhem.Dal.Dto.Request.Models;
 using Mayhem.Dal.Dto.Requests;
 using Mayhem.Dal.Repositories.Interfaces;
 using Mayhem.Dal.Tables;
+using Nethereum.Util;
 
 namespace Mayhem.Bl.Validators
 {
@@ -26,6 +27,9 @@ namespace Mayhem.Bl.Validators
             RuleFor(x => x).NotNull().WithMessage("Invalid add tournament request.");
             RuleFor(x => x.DurationHours).GreaterThan(0).WithMessage("Provide more than 0 hour.");
             RuleFor(x => x.Name).NotEmpty().WithMessage("Enter the name of the tournament.");
+            RuleFor(x => x.TournamentWalletOwner)
+                .Must(wallet => string.IsNullOrEmpty(wallet) || AddressUtil.Current.IsValidEthereumAddressHexFormat(wallet))
+                .WithMessage("Invalid Web3 wallet address.");
             RuleFor(x => x.MP).GreaterThanOrEqualTo(1).LessThanOrEqualTo(30).WithMessage("Set MP between 1 and 30.");
             RuleFor(x => x.HP).GreaterThan(0).WithMessage("Set HP to greater than 0.");
             RuleFor(x => x.SP).GreaterThanOrEqualTo(0).WithMessage("SP should be greater ten now.");

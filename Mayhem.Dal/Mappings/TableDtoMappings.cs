@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Mayhem.Dal.Dto.Dtos;
 using Mayhem.Dal.Dto.Requests;
+using Mayhem.Dal.Dto.Responses;
 using Mayhem.Dal.Tables;
 
 namespace Mayhem.Dal.Mappings
@@ -27,6 +28,7 @@ namespace Mayhem.Dal.Mappings
             CreateMap<TournamentDto, Tournaments>()
                 .ForMember(x => x.Id, y => y.MapFrom(z => z.Id))
                 .ForMember(x => x.Name, y => y.MapFrom(z => z.Name))
+                .ForMember(x => x.TournamentWalletOwner, y => y.MapFrom(z => z.TournamentWalletOwner))
                 .ForMember(x => x.StartDate, y => y.MapFrom(z => z.StartDate))
                 .ForMember(x => x.EndDate, y => y.MapFrom(z => z.EndDate))
                 .ForMember(x => x.CreateDate, y => y.MapFrom(z => z.CreateDate))
@@ -39,6 +41,10 @@ namespace Mayhem.Dal.Mappings
             CreateMap<Tournaments, TournamentDto>()
                 .ForMember(dest => dest.TournamentUserStatistics, opt => opt.MapFrom(src => src.TournamentUserStatistics))
                 .ForMember(dest => dest.QuestDetails, opt => opt.MapFrom(src => src.QuestDetails));
+
+
+            CreateMap<QuestDetailsDto, QuestDetailsDtoResponse>()
+                .ForMember(dest => dest.TournamentType, opt => opt.MapFrom(src => src.TournamentType));
 
             CreateMap<TournamentUserStatistics, TournamentUserStatisticsDto>();
             CreateMap<QuestDetails, QuestDetailsDto>();

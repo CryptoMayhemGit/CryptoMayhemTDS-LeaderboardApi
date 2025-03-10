@@ -40,7 +40,10 @@ namespace Mayhem.Dal.Context
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlServer();
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseSqlServer("Server=tcp:adriagames-database-server.database.windows.net,1433;Initial Catalog=AdriaGames-LeaderBoardApi-SqlDatabase;Persist Security Info=False;User ID=AdriaGamesAdmin;Password=LZFK*t3F5wgWG21H;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
+            }
         }
     }
 }

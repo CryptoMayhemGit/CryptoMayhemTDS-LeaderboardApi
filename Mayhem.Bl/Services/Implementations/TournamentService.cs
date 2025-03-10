@@ -5,7 +5,7 @@ using Mayhem.Configuration;
 using Mayhem.Dal.Dto.Dtos;
 using Mayhem.Dal.Dto.Requests;
 using Mayhem.Dal.Dto.Responses;
-using Mayhem.Dal.Repositories.Implementations;
+using Mayhem.Dal.Models;
 using Mayhem.Dal.Repositories.Interfaces;
 using Mayhem.Dal.Tables;
 using Mayhem.Util.Classes;
@@ -13,6 +13,7 @@ using Mayhem.Util.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Nethereum.Contracts;
+using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Web3;
 using Newtonsoft.Json;
 using System.Numerics;
@@ -44,6 +45,7 @@ namespace Mayhem.Bl.Services.Implementations
                 MP = request.MP,
                 SP = request.SP,
                 HP = request.HP,
+                TournamentWalletOwner = request.TournamentWalletOwner,
                 QuestDetails = mapper.Map<List<QuestDetailsDto>>(request.QuestDetails)
             };
 
@@ -70,6 +72,21 @@ namespace Mayhem.Bl.Services.Implementations
             }
         }
 
+        private async Task SendRewardPostRequestAsync(string url, TournamentRewardsDto tournamentRewardsDto)
+        {
+            var json = JsonConvert.SerializeObject(tournamentRewardsDto);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await httpClient.PostAsync(url, content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorMessage = $"Failed to send POST request. Status code: {response.StatusCode}";
+                logger.LogError(errorMessage);
+                throw new HttpRequestException(errorMessage);
+            }
+        }
+
         public async Task<GetActiveTournamentResponse> GetActiveTournamentAsync()
         {
             Tournaments tournaments = await tournamentRepository.GetActiveAsync();
@@ -83,6 +100,7 @@ namespace Mayhem.Bl.Services.Implementations
             {
                 Id = tournamentDto.Id,
                 Name = tournamentDto.Name,
+                TournamentWalletOwner = tournamentDto.TournamentWalletOwner,
                 StartDate = tournamentDto.StartDate,
                 EndDate = tournamentDto.EndDate,
                 IsFinished = tournamentDto.IsFinished,
@@ -91,7 +109,7 @@ namespace Mayhem.Bl.Services.Implementations
                 SP = tournamentDto.SP,
                 MP = tournamentDto.MP,
                 TournamentUserStatistics = tournamentDto.TournamentUserStatistics,
-                QuestDetails = tournamentDto.QuestDetails
+                QuestDetails = mapper.Map<IList<QuestDetailsDtoResponse>>(tournamentDto.QuestDetails)
             };
         }
 
@@ -187,6 +205,8 @@ namespace Mayhem.Bl.Services.Implementations
             {
                 tournament.IsFinished = true;
                 await tournamentRepository.UpdateAsync(tournament);
+
+                await SendRewards(tournament);
             }
             else
             {
@@ -195,7 +215,6 @@ namespace Mayhem.Bl.Services.Implementations
                 throw new NotFoundException(new ValidationMessage("BAD_REQUEST", errorMessage));
             }
         }
-
 
         public async Task TryEndTournamentAsync()
         {
@@ -217,8 +236,218 @@ namespace Mayhem.Bl.Services.Implementations
             tournament.IsFinished = true;
             await tournamentRepository.UpdateAsync(tournament);
 
+            await SendRewards(tournament);
+
             TournamentDto tournamentDto = mapper.Map<TournamentDto>(tournament);
             await SendPostRequestAsync("https://hook.eu2.make.com/d6g08ol96v6rtln47fxe6uk1v1w3y60f", tournamentDto);
+        }
+
+        private async Task SendRewards(Tournaments tournament)
+        {
+            int tournamentUserStatisticsCount = tournament.TournamentUserStatistics.Count();
+            TournamentRewardsDto tournamentRewardsInfo = new TournamentRewardsDto();
+            tournamentRewardsInfo.TournamentName = tournament.Name;
+            tournamentRewardsInfo.WinnersTable = new List<WinnerTables>();
+            tournamentRewardsInfo.TournamentId = tournament.Id;
+            tournamentRewardsInfo.TournamentWalletOwnerName = tournament.TournamentWalletOwner;
+            int uniqueWalletCount = tournament.TournamentUserStatistics
+                .Select(stat => stat.Wallet)
+                .Distinct()
+                .Count();
+
+            if (tournamentUserStatisticsCount == 0)
+            {
+                await SendRewardPostRequestAsync("https://hook.eu2.make.com/jktqm8e8361j3qi75wrb7ahoc9poelgi", tournamentRewardsInfo);
+                return;
+            }
+
+            float tournamentWalletOwnerReward = 0f;
+            float rewardPool = 0f;
+            if (tournament.TournamentWalletOwner.IsNullOrEmpty() == false)
+            {
+                tournamentWalletOwnerReward = (tournamentUserStatisticsCount * 0.0001f) *0.1f;
+                tournamentRewardsInfo.TournamentWalletOwnerReward = tournamentWalletOwnerReward;
+
+                rewardPool = (tournamentUserStatisticsCount * 0.0001f) * 0.8f;
+            }
+            else
+            {
+                rewardPool = (tournamentUserStatisticsCount * 0.0001f) * 0.9f;
+            }
+
+            if (uniqueWalletCount == 1)
+            {
+
+                TransactionReceipt transactionReceipt = await web3.Eth.GetEtherTransferService()
+                    .TransferEtherAndWaitForReceiptAsync(tournament.TournamentUserStatistics.First().Wallet, (decimal)rewardPool);
+
+                tournamentRewardsInfo.WinnersTable.Add(
+                        new WinnerTables()
+                        {
+                            Wallet = tournament.TournamentUserStatistics.First().Wallet,
+                            KillsSum = tournament.TournamentUserStatistics.Sum(x => x.Kills),
+                            Rank = 1,
+                            Points = tournament.TournamentUserStatistics.Where(x => x.IsWin == true)
+                                .OrderByDescending(x => x.Kills).FirstOrDefault()?.Kills ?? 0,
+                            Reward = rewardPool,
+                            TransactionHash = transactionReceipt.TransactionHash
+                        }
+                    );
+
+                tournamentRewardsInfo.TournamentWalletOwnerTransactionHash = await SendRewardToTournamentWalletOwnerAsync(web3, tournament, tournamentWalletOwnerReward);
+            }
+            else if (uniqueWalletCount == 2)
+            {
+                var topPlayers = tournament.TournamentUserStatistics
+                    .GroupBy(x => x.Wallet)
+                    .Select(g => new
+                    {
+                        Wallet = g.Key,
+                        KillsSum = g.Sum(x => x.IsWin ? x.Kills : 0)
+                    })
+                    .OrderByDescending(x => x.KillsSum)
+                    .ToList();
+
+                if (topPlayers[0].KillsSum == topPlayers[1].KillsSum)
+                {
+                    float rewardPerPlayer = rewardPool / 2;
+
+                    TransactionReceipt transactionReceiptFirstPlayer = await web3.Eth.GetEtherTransferService()
+                        .TransferEtherAndWaitForReceiptAsync(topPlayers[0].Wallet, (decimal)rewardPerPlayer);
+
+                    TransactionReceipt transactionReceiptSeccondPlayer = await web3.Eth.GetEtherTransferService()
+                        .TransferEtherAndWaitForReceiptAsync(topPlayers[1].Wallet, (decimal)rewardPerPlayer);
+
+                    tournamentRewardsInfo.WinnersTable.Add(new WinnerTables
+                    {
+                        Wallet = topPlayers[0].Wallet,
+                        KillsSum = topPlayers[0].KillsSum,
+                        Rank = 1,
+                        Points = topPlayers[0].KillsSum,
+                        Reward = rewardPerPlayer,
+                        TransactionHash = transactionReceiptFirstPlayer.TransactionHash
+                    });
+
+                    tournamentRewardsInfo.WinnersTable.Add(new WinnerTables
+                    {
+                        Wallet = topPlayers[1].Wallet,
+                        KillsSum = topPlayers[1].KillsSum,
+                        Rank = 1,
+                        Points = topPlayers[1].KillsSum,
+                        Reward = rewardPerPlayer,
+                        TransactionHash = transactionReceiptSeccondPlayer.TransactionHash
+                    });
+                }
+                else
+                {
+                    TransactionReceipt transactionReceipt = await web3.Eth.GetEtherTransferService()
+                        .TransferEtherAndWaitForReceiptAsync(topPlayers[0].Wallet, (decimal)rewardPool);
+
+                    tournamentRewardsInfo.WinnersTable.Add(new WinnerTables
+                    {
+                        Wallet = topPlayers[0].Wallet,
+                        KillsSum = topPlayers[0].KillsSum,
+                        Rank = 1,
+                        Points = topPlayers[0].KillsSum,
+                        Reward = rewardPool,
+                        TransactionHash = transactionReceipt.TransactionHash
+                    });
+                }
+
+                tournamentRewardsInfo.TournamentWalletOwnerTransactionHash = await SendRewardToTournamentWalletOwnerAsync(web3, tournament, tournamentWalletOwnerReward);
+            }
+            else if (uniqueWalletCount >= 3)
+            {
+                var topPlayers = tournament.TournamentUserStatistics
+                    .GroupBy(x => x.Wallet)
+                    .Select(g => new
+                    {
+                        Wallet = g.Key,
+                        KillsSum = g.Sum(x => x.IsWin ? x.Kills : 0),
+                    })
+                    .OrderByDescending(x => x.KillsSum)
+                    .ToList();
+
+                var firstPlacePlayers = topPlayers.Where(x => x.KillsSum == topPlayers.First().KillsSum).ToList();
+                var secondPlacePlayers = topPlayers.Where(x => x.KillsSum != topPlayers.First().KillsSum).ToList();
+
+                if (firstPlacePlayers.Count == uniqueWalletCount)
+                {
+                    float rewardPerPlayer = rewardPool / uniqueWalletCount;
+
+                    foreach (var player in firstPlacePlayers)
+                    {
+                        TransactionReceipt transactionReceipt = await web3.Eth.GetEtherTransferService()
+                            .TransferEtherAndWaitForReceiptAsync(player.Wallet, (decimal)rewardPerPlayer);
+
+                        tournamentRewardsInfo.WinnersTable.Add(new WinnerTables
+                        {
+                            Wallet = player.Wallet,
+                            KillsSum = player.KillsSum,
+                            Rank = 1,
+                            Points = player.KillsSum,
+                            Reward = rewardPerPlayer,
+                            TransactionHash = transactionReceipt.TransactionHash
+                        });
+                    }
+                }
+                else
+                {
+                    float firstPlaceReward = rewardPool * 0.8f;
+                    float rewardPerFirstPlacePlayer = firstPlaceReward / firstPlacePlayers.Count;
+
+                    foreach (var player in firstPlacePlayers)
+                    {
+                        TransactionReceipt transactionReceipt = await web3.Eth.GetEtherTransferService()
+                            .TransferEtherAndWaitForReceiptAsync(player.Wallet, (decimal)rewardPerFirstPlacePlayer);
+
+                        tournamentRewardsInfo.WinnersTable.Add(new WinnerTables
+                        {
+                            Wallet = player.Wallet,
+                            KillsSum = player.KillsSum,
+                            Rank = 1,
+                            Points = player.KillsSum,
+                            Reward = rewardPerFirstPlacePlayer,
+                            TransactionHash = transactionReceipt.TransactionHash
+                        });
+                    }
+
+                    float secondPlaceReward = rewardPool * 0.2f;
+                    float rewardPerSecondPlacePlayer = secondPlaceReward / secondPlacePlayers.Count;
+
+                    foreach (var player in secondPlacePlayers)
+                    {
+                        TransactionReceipt transactionReceipt = await web3.Eth.GetEtherTransferService()
+                            .TransferEtherAndWaitForReceiptAsync(player.Wallet, (decimal)rewardPerSecondPlacePlayer);
+
+                        tournamentRewardsInfo.WinnersTable.Add(new WinnerTables
+                        {
+                            Wallet = player.Wallet,
+                            KillsSum = player.KillsSum,
+                            Rank = 2,
+                            Points = player.KillsSum,
+                            Reward = rewardPerSecondPlacePlayer,
+                            TransactionHash = transactionReceipt.TransactionHash
+                        });
+                    }
+                }
+
+                tournamentRewardsInfo.TournamentWalletOwnerTransactionHash = await SendRewardToTournamentWalletOwnerAsync(web3, tournament, tournamentWalletOwnerReward);
+            }
+
+            await SendRewardPostRequestAsync("https://hook.eu2.make.com/jktqm8e8361j3qi75wrb7ahoc9poelgi", tournamentRewardsInfo);
+        }
+
+        private async Task<string> SendRewardToTournamentWalletOwnerAsync(IWeb3 web3, Tournaments tournament, float tournamentWalletOwnerReward)
+        {
+            if (tournamentWalletOwnerReward > 0f && tournament.TournamentWalletOwner.IsNullOrEmpty() == false)
+            {
+                TransactionReceipt transactionReceipt = await web3.Eth.GetEtherTransferService()
+                    .TransferEtherAndWaitForReceiptAsync(tournament.TournamentWalletOwner, (decimal)tournamentWalletOwnerReward);
+                return transactionReceipt.TransactionHash;
+            }
+
+            return string.Empty;
         }
 
         private async Task ValidateRequest(AuthorizationDecodedRequest authorizationDecodedRequest)
